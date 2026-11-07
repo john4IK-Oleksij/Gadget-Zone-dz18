@@ -12,7 +12,10 @@ class Product(Base):
     id: Mapped[str] = mapped_column(String(100), primary_key=True)
     title: Mapped[str] = mapped_column(String(255))
     description: Mapped[str] = mapped_column(Text)
-    image: Mapped[str] = mapped_column(String(500))
+    image: Mapped[str | None] = mapped_column(
+    String(500),
+    nullable=True,
+    )
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     old_price: Mapped[Decimal | None] = mapped_column(
         Numeric(10, 2),
