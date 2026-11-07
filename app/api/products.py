@@ -41,7 +41,7 @@ async def get_products(
     response_model=ProductResponse,
 )
 async def get_product(
-    product_id: str,
+    product_id: int,
     session: DbSession,
 ):
     service = ProductService(session)
@@ -69,7 +69,7 @@ async def create_product(
     response_model=ProductResponse,
 )
 async def update_product(
-    product_id: str,
+    product_id: int,
     data: ProductUpdate,
     session: DbSession,
     admin: AdminUser,
@@ -86,7 +86,7 @@ async def update_product(
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def delete_product(
-    product_id: str,
+    product_id: int,
     session: DbSession,
     admin: AdminUser,
 ):

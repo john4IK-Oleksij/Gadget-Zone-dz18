@@ -4,8 +4,11 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
+from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
+from app.api.cart import router as cart_router
 from app.api.products import router as products_router
+from app.api.users import router as users_router
 from app.core.exceptions import ConflictError, NotFoundError
 from app.db.init_db import init_db
 from app.db.session import AsyncSessionLocal, engine
@@ -47,6 +50,10 @@ async def conflict_exception_handler(
 
 app.include_router(auth_router)
 app.include_router(products_router)
+app.include_router(users_router)
+app.include_router(cart_router)
+app.include_router(admin_router)
+
 
 
 @app.get("/db-test")

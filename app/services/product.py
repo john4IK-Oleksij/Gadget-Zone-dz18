@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import ConflictError, NotFoundError
+from app.core.exceptions import NotFoundError
 from app.models.product import Product
 from app.schemas.product import ProductCreate, ProductUpdate
 
@@ -27,7 +27,7 @@ class ProductService:
 
         return list(result.scalars().all())
 
-    async def get_by_id(self, product_id: str) -> Product:
+    async def get_by_id(self, product_id: int) -> Product:
         result = await self.session.execute(
             select(Product).where(Product.id == product_id)
         )
@@ -40,13 +40,6 @@ class ProductService:
         return product
 
     async def create(self, data: ProductCreate) -> Product:
-        existing_product = await self.session.get(Product, data.id)
-
-        if existing_product is not None:
-            raise ConflictError(
-                "Product with this id already exists"
-            )
-
         product = Product(**data.model_dump())
 
         self.session.add(product)
