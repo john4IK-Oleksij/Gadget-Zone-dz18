@@ -20,7 +20,11 @@ from app.db.session import AsyncSessionLocal, engine
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    print(
+        f"Connecting to database: host={engine.url.host}, port={engine.url.port}, db={engine.url.database}"
+    )
     await init_db(engine)
+    print("Database tables initialized successfully!")
     yield
 
 
