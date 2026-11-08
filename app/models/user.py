@@ -46,7 +46,7 @@ class User(Base):
 
     @validates("role")
     def sync_role_to_is_admin(self, key: str, value: Role | str) -> Role:
-        parsed_role: Role = Role(value) if isinstance(value, str) else value
+        parsed_role: Role = Role(value)
         self.is_admin = (parsed_role == Role.admin)
         return parsed_role
 
