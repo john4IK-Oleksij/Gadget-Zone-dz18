@@ -6,7 +6,8 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.db.base import Base
-from app.models import CartItem, Product, RefreshToken, User  # noqa: F401
+import app.models  # noqa: F401 - ensures all models are registered on Base
+from app.models import Product, User
 
 
 async def init_db(engine: AsyncEngine) -> None:

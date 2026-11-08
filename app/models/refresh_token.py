@@ -1,9 +1,13 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 class RefreshToken(Base):
@@ -44,4 +48,4 @@ class RefreshToken(Base):
         nullable=True,
     )
 
-    user: Mapped["User"] = relationship("User", backref="refresh_tokens")  # noqa: F821
+    user: Mapped["User"] = relationship("User", backref="refresh_tokens")
