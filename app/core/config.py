@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -19,7 +21,7 @@ class Settings(BaseSettings):
     refresh_token_ttl_days: int = 7
 
     cookie_secure: bool = False
-    cookie_samesite: str = "lax"
+    cookie_samesite: Literal["lax", "strict", "none"] = "lax"
 
     # Frontend origins allowed to call the API (VS Code Live Server by default).
     cors_origins: list[str] = [

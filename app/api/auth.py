@@ -1,22 +1,14 @@
 from typing import Annotated
 
-import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.core.cookies import clear_refresh_cookie, set_refresh_cookie
-from app.core.security import (
-    DUMMY_HASH,
-    create_access_token,
-    create_refresh_token,
-    decode_access_token,
-    hash_password,
-    verify_password,
-)
+from app.core.security import hash_password
 from app.db.session import get_db
+from app.dependencies.auth import CurrentUser
 from app.models.user import User
 from app.schemas.user import (
     RefreshTokenRequest,
@@ -24,12 +16,12 @@ from app.schemas.user import (
     UserCreate,
     UserResponse,
 )
+from app.services.auth_service import AuthService
 
 router = APIRouter(
     prefix="/auth",
     tags=["Authentication"],
 )
-
 
 DbSession = Annotated[
     AsyncSession,
@@ -45,7 +37,7 @@ DbSession = Annotated[
 async def register(
     data: UserCreate,
     session: DbSession,
-):
+) -> User:
     result = await session.execute(
         select(User).where(User.email == data.email)
     )
@@ -82,29 +74,11 @@ async def login(
         Depends(),
     ],
     session: DbSession,
-):
-    result = await session.execute(
-        select(User).where(
-            User.email == form_data.username
-        )
-    )
+) -> dict[str, str]:
+    service = AuthService(session)
+    user = await service.authenticate(form_data.username, form_data.password)
 
-    user = result.scalar_one_or_none()
-
-    valid = False
-    if user is not None:
-        valid = await verify_password(
-            form_data.password,
-            user.password_hash,
-        )
-    else:
-        # Timing attack defense: perform verification against dummy hash
-        await verify_password(
-            form_data.password,
-            DUMMY_HASH,
-        )
-
-    if not valid:
+    if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
@@ -113,15 +87,13 @@ async def login(
             },
         )
 
-    access_token = create_access_token(user.id)
-    refresh_token = create_refresh_token(user.id)
-
-    set_refresh_cookie(response, refresh_token)
+    pair = await service.login(user)
+    set_refresh_cookie(response, pair.refresh_token)
 
     return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
+        "access_token": pair.access_token,
+        "refresh_token": pair.refresh_token,
+        "token_type": pair.token_type,
     }
 
 
@@ -134,43 +106,59 @@ async def refresh_tokens(
     response: Response,
     session: DbSession,
     body: RefreshTokenRequest | None = None,
-):
-    token = (body and body.refresh_token) or request.cookies.get("refresh_token")
-    if not token:
+) -> dict[str, str]:
+    raw_token = (body and body.refresh_token) or request.cookies.get("refresh_token")
+    if not raw_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token missing",
         )
 
-    try:
-        payload = decode_access_token(token)
-        sub = payload.get("sub")
-        if not isinstance(sub, (str, int)):
-            raise ValueError("Token sub claim is missing or invalid")
-        user_id = int(sub)
-    except (jwt.PyJWTError, ValueError, TypeError, KeyError):
+    service = AuthService(session)
+    pair = await service.refresh(raw_token)
+    if pair is None:
+        clear_refresh_cookie(response)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
         )
 
-    result = await session.execute(
-        select(User).where(User.id == user_id)
-    )
-    user = result.scalar_one_or_none()
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-        )
-
-    new_access_token = create_access_token(user.id)
-    new_refresh_token = create_refresh_token(user.id)
-
-    set_refresh_cookie(response, new_refresh_token)
+    set_refresh_cookie(response, pair.refresh_token)
 
     return {
-        "access_token": new_access_token,
-        "refresh_token": new_refresh_token,
-        "token_type": "bearer",
+        "access_token": pair.access_token,
+        "refresh_token": pair.refresh_token,
+        "token_type": pair.token_type,
     }
+
+
+@router.post(
+    "/logout",
+)
+async def logout(
+    request: Request,
+    response: Response,
+    session: DbSession,
+    body: RefreshTokenRequest | None = None,
+) -> dict[str, str]:
+    """Вихід з поточного пристрою (відкликає конкретну сесію refresh token)."""
+    raw_token = (body and body.refresh_token) or request.cookies.get("refresh_token")
+    service = AuthService(session)
+    await service.logout(raw_token)
+    clear_refresh_cookie(response)
+    return {"detail": "Successfully logged out"}
+
+
+@router.post(
+    "/logout-all",
+)
+async def logout_all(
+    response: Response,
+    current_user: CurrentUser,
+    session: DbSession,
+) -> dict[str, str]:
+    """Вихід з усіх пристроїв (відкликає всі активні сесії користувача)."""
+    service = AuthService(session)
+    await service.logout_all(current_user.id)
+    clear_refresh_cookie(response)
+    return {"detail": "All sessions have been revoked"}
