@@ -1,3 +1,5 @@
+from typing import Any
+
 from sqlalchemy import Boolean, Enum, String, false, true
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
@@ -35,7 +37,7 @@ class User(Base):
         server_default=false(),
     )
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         if "role" in kwargs and "is_admin" not in kwargs:
             kwargs["is_admin"] = (kwargs["role"] == Role.admin)
         elif "is_admin" in kwargs and "role" not in kwargs:
@@ -43,16 +45,15 @@ class User(Base):
         super().__init__(**kwargs)
 
     @validates("role")
-    def sync_role_to_is_admin(self, key, value):
-        if isinstance(value, str):
-            value = Role(value)
-        self.is_admin = (value == Role.admin)
-        return value
+    def sync_role_to_is_admin(self, key: str, value: Role | str) -> Role:
+        parsed_role: Role = Role(value) if isinstance(value, str) else value
+        self.is_admin = (parsed_role == Role.admin)
+        return parsed_role
 
     @validates("is_admin")
-    def sync_is_admin_to_role(self, key, value):
+    def sync_is_admin_to_role(self, key: str, value: bool) -> bool:
         if value and getattr(self, "role", None) != Role.admin:
             self.role = Role.admin
         elif not value and getattr(self, "role", None) == Role.admin:
             self.role = Role.customer
-        return value
+        return bool(value)
