@@ -7,7 +7,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.cookies import clear_refresh_cookie, set_refresh_cookie
 from app.core.security import (
+    DUMMY_HASH,
     create_access_token,
     create_refresh_token,
     decode_access_token,
@@ -58,7 +60,7 @@ async def register(
 
     user = User(
         email=data.email,
-        password_hash=hash_password(data.password),
+        password_hash=await hash_password(data.password),
         is_admin=False,
     )
 
@@ -89,13 +91,20 @@ async def login(
 
     user = result.scalar_one_or_none()
 
-    if (
-        user is None
-        or not verify_password(
+    valid = False
+    if user is not None:
+        valid = await verify_password(
             form_data.password,
             user.password_hash,
         )
-    ):
+    else:
+        # Timing attack defense: perform verification against dummy hash
+        await verify_password(
+            form_data.password,
+            DUMMY_HASH,
+        )
+
+    if not valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
@@ -107,13 +116,7 @@ async def login(
     access_token = create_access_token(user.id)
     refresh_token = create_refresh_token(user.id)
 
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh_token,
-        httponly=True,
-        samesite="lax",
-        max_age=settings.refresh_token_ttl_days * 86400,
-    )
+    set_refresh_cookie(response, refresh_token)
 
     return {
         "access_token": access_token,
@@ -164,13 +167,7 @@ async def refresh_tokens(
     new_access_token = create_access_token(user.id)
     new_refresh_token = create_refresh_token(user.id)
 
-    response.set_cookie(
-        key="refresh_token",
-        value=new_refresh_token,
-        httponly=True,
-        samesite="lax",
-        max_age=settings.refresh_token_ttl_days * 86400,
-    )
+    set_refresh_cookie(response, new_refresh_token)
 
     return {
         "access_token": new_access_token,

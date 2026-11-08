@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     access_token_ttl_minutes: int = 15
     refresh_token_ttl_days: int = 7
 
+    cookie_secure: bool = False
+    cookie_samesite: str = "lax"
+
     # Frontend origins allowed to call the API (VS Code Live Server by default).
     cors_origins: list[str] = [
         "http://127.0.0.1:5500",
