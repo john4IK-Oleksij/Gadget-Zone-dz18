@@ -41,6 +41,25 @@ def create_access_token(user_id: int) -> str:
     )
 
 
+def create_refresh_token(user_id: int) -> str:
+    now = datetime.now(UTC)
+
+    payload: dict[str, Any] = {
+        "sub": str(user_id),
+        "iat": now,
+        "exp": now + timedelta(
+            days=settings.refresh_token_ttl_days,
+        ),
+        "type": "refresh",
+    }
+
+    return jwt.encode(  # type: ignore[reportUnknownMemberType]
+        payload,
+        settings.jwt_secret_key.get_secret_value(),
+        algorithm=settings.jwt_algorithm,
+    )
+
+
 def decode_access_token(token: str) -> dict[str, Any]:
     payload = jwt.decode(  # type: ignore[reportUnknownMemberType]
         token,

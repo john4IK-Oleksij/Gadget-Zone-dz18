@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from sqlalchemy import Numeric, String, Text
+from sqlalchemy import Boolean, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -32,3 +32,5 @@ class Product(Base):
     category: Mapped[str] = mapped_column(String(100))
 
     stock_quantity: Mapped[int] = mapped_column(default=0)
+
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)

@@ -19,6 +19,7 @@ class CartItemResponse(BaseModel):
     price: Decimal
     stock_quantity: int
     quantity: int
+    is_active: bool = True
 
 
 class CartResponse(BaseModel):

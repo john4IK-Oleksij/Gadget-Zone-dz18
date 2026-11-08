@@ -65,3 +65,21 @@ AdminUser = Annotated[
     User,
     Depends(require_admin),
 ]
+
+
+async def require_non_admin(
+    current_user: CurrentUser,
+) -> User:
+    if current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admins cannot use cart",
+        )
+
+    return current_user
+
+
+NonAdminUser = Annotated[
+    User,
+    Depends(require_non_admin),
+]

@@ -144,7 +144,7 @@ class TestAuthorization:
         - Expected status: 200
         - Verify user data is returned without password hashes
         """
-        email = "admin@example.com"
+        email = "admin_users@example.com"
         password = "adminpass"
 
         register_response = await client.post(
@@ -193,7 +193,7 @@ class TestAuthorization:
         - Expected status: 200
         - Verify users_count and products_count are present and are integers
         """
-        email = "admin@example.com"
+        email = "admin_stats@example.com"
         password = "adminpass"
 
         register_response = await client.post(

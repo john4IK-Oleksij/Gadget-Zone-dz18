@@ -109,7 +109,7 @@ class TestProducts:
 
         assert data["id"] == product_id
         assert data["title"] == "Updated Title"
-        assert data["price"] == 149.99
+        assert float(data["price"]) == 149.99
         assert data["stock_quantity"] == 20
 
     @pytest.mark.asyncio
@@ -167,7 +167,7 @@ class TestProducts:
         product_id = response.json()["id"]
         assert response.json()["stock_quantity"] == 0
 
-        list_response = await client.get("/products")
+        list_response = await client.get("/products?limit=100")
         assert list_response.status_code == 200
         products = list_response.json()
 

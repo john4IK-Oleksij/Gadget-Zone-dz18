@@ -141,3 +141,45 @@ class TestAuthentication:
         assert data["email"] == email
         assert data["is_admin"] is False
         assert "password_hash" not in data
+
+    @pytest.mark.asyncio
+    async def test_refresh_token_with_json_body(self, client: AsyncClient):
+        """Test refresh token using JSON request body."""
+        email = "refresh_json@example.com"
+        password = "password123"
+
+        await client.post(
+            "/auth/register",
+            json={"email": email, "password": password},
+        )
+        login_res = await client.post(
+            "/auth/login",
+            data={"username": email, "password": password},
+        )
+        login_data = login_res.json()
+        assert "refresh_token" in login_data
+
+        refresh_res = await client.post(
+            "/auth/refresh",
+            json={"refresh_token": login_data["refresh_token"]},
+        )
+        assert refresh_res.status_code == 200
+        refresh_data = refresh_res.json()
+        assert "access_token" in refresh_data
+        assert "refresh_token" in refresh_data
+
+        me_res = await client.get(
+            "/users/me",
+            headers={"Authorization": f"Bearer {refresh_data['access_token']}"},
+        )
+        assert me_res.status_code == 200
+        assert me_res.json()["email"] == email
+
+    @pytest.mark.asyncio
+    async def test_refresh_token_invalid(self, client: AsyncClient):
+        """Test refresh with invalid token returns 401."""
+        res = await client.post(
+            "/auth/refresh",
+            json={"refresh_token": "invalid_token_string"},
+        )
+        assert res.status_code == 401

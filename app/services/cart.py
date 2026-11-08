@@ -37,6 +37,7 @@ class CartService:
                     price=product.price,
                     stock_quantity=product.stock_quantity,
                     quantity=item.quantity,
+                    is_active=product.is_active,
                 )
                 for item, product in rows
             ],
@@ -56,7 +57,7 @@ class CartService:
             data.product_id,
         )
 
-        if product is None:
+        if product is None or not product.is_active:
             raise NotFoundError("Product not found")
 
         result = await self.session.execute(
@@ -88,12 +89,13 @@ class CartService:
             price=product.price,
             stock_quantity=product.stock_quantity,
             quantity=item.quantity,
+            is_active=product.is_active,
         )
 
     async def update_item(
         self,
         user_id: int,
-        product_id: str,
+        product_id: int,
         data: CartItemUpdate,
     ) -> CartItemResponse:
         result = await self.session.execute(
@@ -125,12 +127,13 @@ class CartService:
             price=product.price,
             stock_quantity=product.stock_quantity,
             quantity=item.quantity,
+            is_active=product.is_active,
         )
 
     async def remove_item(
         self,
         user_id: int,
-        product_id: str,
+        product_id: int,
     ) -> None:
         result = await self.session.execute(
             select(CartItem).where(

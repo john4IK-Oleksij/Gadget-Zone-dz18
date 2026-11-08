@@ -108,6 +108,7 @@ async def client(test_session: AsyncSession) -> AsyncGenerator[AsyncClient, None
             transport=transport,
             base_url="http://test",
         ) as ac:
+            ac.app = app
             yield ac
     finally:
         app.dependency_overrides.clear()

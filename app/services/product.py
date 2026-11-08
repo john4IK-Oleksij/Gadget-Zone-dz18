@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError
@@ -10,13 +10,34 @@ class ProductService:
     def __init__(self, session: AsyncSession):
         self.session = session
 
+    async def get_count(
+        self,
+        category: str | None = None,
+        include_inactive: bool = False,
+    ) -> int:
+        query = select(func.count(Product.id))
+
+        if not include_inactive:
+            query = query.where(Product.is_active.is_(True))
+
+        if category is not None:
+            query = query.where(Product.category == category)
+
+        result = await self.session.execute(query)
+
+        return result.scalar() or 0
+
     async def get_all(
         self,
         category: str | None = None,
         skip: int = 0,
         limit: int = 8,
+        include_inactive: bool = False,
     ) -> list[Product]:
         query = select(Product)
+
+        if not include_inactive:
+            query = query.where(Product.is_active.is_(True))
 
         if category is not None:
             query = query.where(Product.category == category)
@@ -27,10 +48,17 @@ class ProductService:
 
         return list(result.scalars().all())
 
-    async def get_by_id(self, product_id: int) -> Product:
-        result = await self.session.execute(
-            select(Product).where(Product.id == product_id)
-        )
+    async def get_by_id(
+        self,
+        product_id: int,
+        include_inactive: bool = False,
+    ) -> Product:
+        query = select(Product).where(Product.id == product_id)
+
+        if not include_inactive:
+            query = query.where(Product.is_active.is_(True))
+
+        result = await self.session.execute(query)
 
         product = result.scalar_one_or_none()
 
@@ -62,5 +90,8 @@ class ProductService:
         return product
 
     async def delete(self, product: Product) -> None:
-        await self.session.delete(product)
+        # Soft delete: marks product as inactive so it disappears from catalog,
+        # but preserves cart items with "Знято з продажу" and historical integrity.
+        product.is_active = False
         await self.session.commit()
+        await self.session.refresh(product)

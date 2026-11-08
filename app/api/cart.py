@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.dependencies.auth import CurrentUser
+from app.dependencies.auth import NonAdminUser
 from app.schemas.cart import (
     CartItemCreate,
     CartItemResponse,
@@ -30,7 +30,7 @@ DbSession = Annotated[
     response_model=CartResponse,
 )
 async def get_cart(
-    current_user: CurrentUser,
+    current_user: NonAdminUser,
     session: DbSession,
 ):
     service = CartService(session)
@@ -45,7 +45,7 @@ async def get_cart(
 )
 async def add_cart_item(
     data: CartItemCreate,
-    current_user: CurrentUser,
+    current_user: NonAdminUser,
     session: DbSession,
 ):
     service = CartService(session)
@@ -63,7 +63,7 @@ async def add_cart_item(
 async def update_cart_item(
     product_id: str,
     data: CartItemUpdate,
-    current_user: CurrentUser,
+    current_user: NonAdminUser,
     session: DbSession,
 ):
     service = CartService(session)
@@ -81,7 +81,7 @@ async def update_cart_item(
 )
 async def remove_cart_item(
     product_id: str,
-    current_user: CurrentUser,
+    current_user: NonAdminUser,
     session: DbSession,
 ):
     service = CartService(session)

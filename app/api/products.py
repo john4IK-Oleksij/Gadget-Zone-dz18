@@ -1,6 +1,9 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+import os
+import shutil
+import uuid
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
@@ -34,6 +37,16 @@ async def get_products(
         skip=skip,
         limit=limit,
     )
+
+
+@router.get("/count")
+async def get_products_count(
+    session: DbSession,
+    category: str | None = None,
+):
+    service = ProductService(session)
+    count = await service.get_count(category=category)
+    return {"count": count}
 
 
 @router.get(
@@ -76,7 +89,7 @@ async def update_product(
 ):
     service = ProductService(session)
 
-    product = await service.get_by_id(product_id)
+    product = await service.get_by_id(product_id, include_inactive=True)
 
     return await service.update(product, data)
 
@@ -92,6 +105,32 @@ async def delete_product(
 ):
     service = ProductService(session)
 
-    product = await service.get_by_id(product_id)
+    product = await service.get_by_id(product_id, include_inactive=True)
 
     await service.delete(product)
+
+@router.post(
+    "/upload-image",
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_product_image(
+    admin: AdminUser,
+    file: UploadFile = File(...),
+):
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only image files are allowed",
+        )
+
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if not ext or ext not in [".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"]:
+        ext = ".jpg"
+
+    unique_filename = f"{uuid.uuid4().hex}{ext}"
+    filepath = os.path.join("uploads", unique_filename)
+
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    return {"image_url": f"/uploads/{unique_filename}"}

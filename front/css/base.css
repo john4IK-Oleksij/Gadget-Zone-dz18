@@ -1,0 +1,112 @@
+/* Base: design tokens, reset, typography.
+   Palette 60 / 30 / 10:
+   60% cream (background, cards, description sections)
+   30% dark green (header, footer, nav, text) + green (banners, hover, borders, icons)
+   10% mustard gold (action buttons only)
+   burgundy is used only for danger / destructive actions */
+:root {
+    /* Palette */
+    --color-cream: #E9DCC0;
+    --color-dark-green: #0F2F24;
+    --color-green: #0A5A4A;
+    --color-gold: #B8860B;
+    --color-burgundy: #6B1F2B;
+
+    /* Semantic roles */
+    --color-background: var(--color-cream);
+    --color-card: var(--color-cream);
+    --color-text: var(--color-dark-green);
+    --color-heading: var(--color-dark-green);
+    --color-border: #C9B88F;
+    --color-muted: #5C5A4B;
+    --color-success: var(--color-green);
+    --color-danger: var(--color-burgundy);
+
+    /* Hover shades */
+    --color-dark-green-hover: #0A2018;
+    --color-green-hover: #084839;
+    --color-gold-hover: #9C710A;
+    --color-danger-hover: #521822;
+
+    /* Image placeholder */
+    --color-placeholder-from: #E0D2B2;
+    --color-placeholder-to: #D2C29F;
+
+    /* Typography */
+    --font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+    --font-size-small: 14px;
+    --font-size-base: 16px;
+    --font-size-large: 20px;
+    --font-size-h2: 24px;
+    --font-size-h1: 32px;
+
+    /* Spacing */
+    --space-4: 4px;
+    --space-8: 8px;
+    --space-12: 12px;
+    --space-16: 16px;
+    --space-24: 24px;
+    --space-32: 32px;
+    --space-48: 48px;
+
+    /* Shape */
+    --radius-small: 4px;
+    --radius-medium: 8px;
+    --radius-large: 12px;
+    --shadow-card: 0 2px 8px rgba(15, 47, 36, 0.12);
+    --transition: 0.2s ease;
+}
+[hidden] {
+    display: none !important;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: var(--font-family);
+    font-size: var(--font-size-base);
+    line-height: 1.5;
+    color: var(--color-text);
+    background: var(--color-background);
+}
+
+h1,
+h2,
+h3 {
+    margin: 0 0 var(--space-16);
+    line-height: 1.25;
+    color: var(--color-heading);
+}
+
+h1 { font-size: var(--font-size-h1); }
+h2 { font-size: var(--font-size-h2); }
+h3 { font-size: var(--font-size-large); }
+
+p {
+    margin: 0 0 var(--space-16);
+}
+
+a {
+    color: var(--color-green);
+}
+
+img {
+    display: block;
+    max-width: 100%;
+}
+
+button,
+input,
+select {
+    font: inherit;
+}
+
+:focus-visible {
+    outline: 2px solid var(--color-green);
+    outline-offset: 2px;
+}

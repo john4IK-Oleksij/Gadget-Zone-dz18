@@ -11,6 +11,7 @@ class ProductCreate(BaseModel):
     old_price: Decimal | None = None
     category: str
     stock_quantity: int = Field(default=0, ge=0)
+    is_active: bool = True
 
 
 class ProductUpdate(BaseModel):
@@ -21,6 +22,7 @@ class ProductUpdate(BaseModel):
     old_price: Decimal | None = None
     category: str
     stock_quantity: int = Field(ge=0)
+    is_active: bool = True
 
 
 class ProductResponse(BaseModel):
@@ -34,3 +36,4 @@ class ProductResponse(BaseModel):
     old_price: Decimal | None
     category: str
     stock_quantity: int
+    is_active: bool = True
