@@ -143,13 +143,11 @@ async function loadUsers(usersContainer, currentUser, onUserChanged) {
             const actionsBox = createElement('div', 'admin-table__actions');
 
             if (isOwner) {
-                const protectedLabel = createElement('span', 'text-muted', 'Owner (Immutable)');
-                protectedLabel.style.fontSize = '12px';
-                actionsBox.append(protectedLabel);
+                const ownerBadge = createElement('span', 'badge badge--owner', '👑 Owner (Immutable)');
+                actionsBox.append(ownerBadge);
             } else if (isCurrent) {
-                const youLabel = createElement('span', 'text-muted', 'You (Current Admin)');
-                youLabel.style.fontSize = '12px';
-                actionsBox.append(youLabel);
+                const youBadge = createElement('span', 'badge badge--current-user', '★ You (Current Admin)');
+                actionsBox.append(youBadge);
             } else {
                 // Toggle Block/Unblock
                 const blockBtn = createElement(

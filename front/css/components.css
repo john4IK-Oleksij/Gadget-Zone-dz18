@@ -1293,6 +1293,22 @@
     color: #ffffff;
 }
 
+.badge--current-user {
+    background: #c2410c; /* dark orange / amber */
+    color: #ffffff;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    border: 1px solid #ea580c;
+}
+
+.badge--owner {
+    background: #6b21a8; /* royal purple */
+    color: #ffffff;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    border: 1px solid #9333ea;
+}
+
 .badge--user {
     background: var(--color-border);
     color: var(--color-dark-green);
