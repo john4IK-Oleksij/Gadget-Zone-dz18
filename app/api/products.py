@@ -1,7 +1,8 @@
+import asyncio
 import os
 import shutil
 import uuid
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -110,13 +111,18 @@ async def delete_product(
     await service.delete(product)
 
 
+def _save_upload_file(filepath: str, file_obj: Any) -> None:
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file_obj, buffer)
+
+
 @router.post(
     "/upload-image",
     status_code=status.HTTP_201_CREATED,
 )
 async def upload_product_image(
     manager: ManagerUser,
-    file: UploadFile = File(...),
+    file: Annotated[UploadFile, File()],
 ):
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(
@@ -131,7 +137,6 @@ async def upload_product_image(
     unique_filename = f"{uuid.uuid4().hex}{ext}"
     filepath = os.path.join("uploads", unique_filename)
 
-    with open(filepath, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    await asyncio.to_thread(_save_upload_file, filepath, file.file)
 
     return {"image_url": f"/uploads/{unique_filename}"}

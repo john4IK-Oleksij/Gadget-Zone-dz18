@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
+from starlette.middleware.base import RequestResponseEndpoint
+from starlette.responses import Response
 
 from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
@@ -40,7 +42,10 @@ app = FastAPI(
 
 
 @app.middleware("http")
-async def security_headers_middleware(request: Request, call_next):
+async def security_headers_middleware(
+    request: Request,
+    call_next: RequestResponseEndpoint,
+) -> Response:
     """Додає стандартні HTTP-заголовки захисту від XSS, Clickjacking та MIME-sniffing."""
     response = await call_next(request)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")

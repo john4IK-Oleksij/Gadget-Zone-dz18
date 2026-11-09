@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import ForbiddenError, NotFoundError
 from app.models.product import Product
 from app.models.user import User
+from app.schemas.admin import AdminStatsResponse
 from app.schemas.product import ProductResponse
 from app.schemas.user import AdminUserResponse, UserAdminUpdate
 from app.services.auth_service import revoke_user_tokens
@@ -86,7 +87,7 @@ class AdminService:
             for product in products
         ]
 
-    async def get_stats(self) -> dict[str, int]:
+    async def get_stats(self) -> AdminStatsResponse:
         users_count = await self.session.scalar(
             select(func.count(User.id))
         )
@@ -95,7 +96,7 @@ class AdminService:
             select(func.count(Product.id))
         )
 
-        return {
-            "users_count": users_count or 0,
-            "products_count": products_count or 0,
-        }
+        return AdminStatsResponse(
+            users_count=users_count or 0,
+            products_count=products_count or 0,
+        )
