@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.dependencies.auth import AdminUser
+from app.dependencies.auth import AdminUser, ManagerUser
 from app.schemas.admin import AdminStatsResponse
 from app.schemas.product import ProductResponse
 from app.schemas.user import AdminUserResponse, UserAdminUpdate
@@ -67,7 +67,7 @@ async def delete_user(
     response_model=list[ProductResponse],
 )
 async def get_products(
-    admin: AdminUser,
+    manager: ManagerUser,
     session: DbSession,
 ) -> list[ProductResponse]:
     service = AdminService(session)
@@ -80,7 +80,7 @@ async def get_products(
     response_model=AdminStatsResponse,
 )
 async def get_stats(
-    admin: AdminUser,
+    manager: ManagerUser,
     session: DbSession,
 ) -> AdminStatsResponse:
     service = AdminService(session)
