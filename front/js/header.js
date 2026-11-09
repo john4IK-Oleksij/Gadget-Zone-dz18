@@ -1,6 +1,6 @@
 import { getAuthState, ROLE } from './state.js';
 import { clearToken } from './auth.js';
-import { API_BASE_URL } from './api.js';
+import { apiRequest, API_BASE_URL } from './api.js';
 import { createElement, createLink, createCartIcon } from './ui.js';
 import { queueBanner, showQueuedBanner } from './banner.js';
 import { setupMiniCart } from './mini-cart.js';
@@ -97,6 +97,110 @@ function buildSearch() {
     return form;
 }
 
+function openChangePasswordModal() {
+    const overlay = createElement('div', 'modal-overlay');
+    const dialog = createElement('div', 'modal-dialog card');
+
+    const title = createElement('h3', 'modal-dialog__title', 'Change Password');
+    const form = createElement('form', 'stack');
+
+    // Current Password
+    const oldField = createElement('div', 'form-field');
+    const oldLabel = createElement('label', 'form-field__label', 'Current Password *');
+    const oldInput = createElement('input', 'form-field__input');
+    oldInput.type = 'password';
+    oldInput.required = true;
+    oldField.append(oldLabel, oldInput);
+
+    // New Password
+    const newField = createElement('div', 'form-field');
+    const newLabel = createElement('label', 'form-field__label', 'New Password (min 8 chars) *');
+    const newInput = createElement('input', 'form-field__input');
+    newInput.type = 'password';
+    newInput.required = true;
+    newInput.minLength = 8;
+    newField.append(newLabel, newInput);
+
+    // Confirm Password
+    const confirmField = createElement('div', 'form-field');
+    const confirmLabel = createElement('label', 'form-field__label', 'Confirm New Password *');
+    const confirmInput = createElement('input', 'form-field__input');
+    confirmInput.type = 'password';
+    confirmInput.required = true;
+    confirmField.append(confirmLabel, confirmInput);
+
+    // Error alert
+    const errorBox = createElement('p', 'state-message state-message--error');
+    errorBox.hidden = true;
+
+    // Actions
+    const actions = createElement('div', 'modal-dialog__actions');
+    const cancelBtn = createElement('button', 'button button--outline', 'Cancel');
+    cancelBtn.type = 'button';
+    const submitBtn = createElement('button', 'button button--primary', 'Update Password');
+    submitBtn.type = 'submit';
+
+    actions.append(cancelBtn, submitBtn);
+    form.append(oldField, newField, confirmField, errorBox, actions);
+    dialog.append(title, form);
+    overlay.append(dialog);
+    document.body.append(overlay);
+
+    oldInput.focus();
+
+    const cleanup = () => {
+        overlay.remove();
+        document.removeEventListener('keydown', onKeyDown);
+    };
+
+    const onKeyDown = (e) => {
+        if (e.key === 'Escape') cleanup();
+    };
+
+    cancelBtn.addEventListener('click', cleanup);
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) cleanup();
+    });
+    document.addEventListener('keydown', onKeyDown);
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const old_password = oldInput.value;
+        const new_password = newInput.value;
+        const confirm_password = confirmInput.value;
+
+        if (new_password !== confirm_password) {
+            errorBox.textContent = 'New passwords do not match';
+            errorBox.hidden = false;
+            return;
+        }
+
+        if (new_password.length < 8) {
+            errorBox.textContent = 'Password must be at least 8 characters long';
+            errorBox.hidden = false;
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Updating...';
+
+        try {
+            await apiRequest('/users/me/change-password', {
+                method: 'POST',
+                body: { old_password, new_password },
+            });
+            cleanup();
+            queueBanner('Password successfully changed!', 'success');
+            showQueuedBanner();
+        } catch (err) {
+            errorBox.textContent = err.message || 'Failed to update password';
+            errorBox.hidden = false;
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Update Password';
+        }
+    });
+}
+
 function buildActions(role, user) {
     const actions = createElement('div', 'site-header__actions');
 
@@ -112,6 +216,11 @@ function buildActions(role, user) {
     }
 
     actions.append(createElement('span', 'site-header__email', user.email));
+
+    const changePwdBtn = createElement('button', 'site-header__change-pwd-btn', '🔑 Change Password');
+    changePwdBtn.type = 'button';
+    changePwdBtn.addEventListener('click', openChangePasswordModal);
+    actions.append(changePwdBtn);
 
     const logout = createElement('button', 'site-header__logout', 'Logout');
     logout.type = 'button';

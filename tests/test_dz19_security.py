@@ -320,3 +320,50 @@ class TestDZ19SecurityAndRBAC:
         assert res.headers.get("X-Content-Type-Options") == "nosniff"
         assert res.headers.get("X-Frame-Options") == "DENY"
         assert res.headers.get("Referrer-Policy") == "strict-origin-when-cross-origin"
+
+    @pytest.mark.asyncio
+    async def test_change_password_self(
+        self, client: AsyncClient, test_session: AsyncSession
+    ) -> None:
+        """Test user changing their own password with old_password verification."""
+        email = "pwd_user@example.com"
+        old_pwd = "OldPassword123!"
+        new_pwd = "NewPassword123!"
+
+        await client.post("/auth/register", json={"email": email, "password": old_pwd})
+        login_res = await client.post("/auth/login", data={"username": email, "password": old_pwd})
+        token = login_res.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # 1. Wrong old password -> 400
+        wrong_res = await client.post(
+            "/users/me/change-password",
+            headers=headers,
+            json={"old_password": "WrongPassword999!", "new_password": new_pwd},
+        )
+        assert wrong_res.status_code == 400
+        assert "incorrect current password" in wrong_res.json()["detail"].lower()
+
+        # 2. Too short new password -> 400
+        short_res = await client.post(
+            "/users/me/change-password",
+            headers=headers,
+            json={"old_password": old_pwd, "new_password": "short"},
+        )
+        assert short_res.status_code == 400
+
+        # 3. Successful change -> 200
+        ok_res = await client.post(
+            "/users/me/change-password",
+            headers=headers,
+            json={"old_password": old_pwd, "new_password": new_pwd},
+        )
+        assert ok_res.status_code == 200
+
+        # 4. Old password no longer works
+        old_login = await client.post("/auth/login", data={"username": email, "password": old_pwd})
+        assert old_login.status_code == 401
+
+        # 5. New password works
+        new_login = await client.post("/auth/login", data={"username": email, "password": new_pwd})
+        assert new_login.status_code == 200

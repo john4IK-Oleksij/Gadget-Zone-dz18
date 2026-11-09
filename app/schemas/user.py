@@ -41,3 +41,8 @@ class AdminUserResponse(BaseModel):
 class UserAdminUpdate(BaseModel):
     role: Role | None = None
     is_active: bool | None = None
+
+
+class UserChangePassword(BaseModel):
+    old_password: str
+    new_password: str

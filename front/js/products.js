@@ -14,8 +14,8 @@ import {
     isSoldOut,
 } from './ui.js';
 
-// The backend returns 8 products per page by default.
-const PAGE_SIZE = 8;
+// Show 10 products per page (2 compact rows of 5 cards).
+const PAGE_SIZE = 10;
 
 const grid = document.getElementById('product-grid');
 const paginationNav = document.getElementById('pagination');
