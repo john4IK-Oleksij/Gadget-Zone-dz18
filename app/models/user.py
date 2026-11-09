@@ -46,14 +46,15 @@ class User(Base):
 
     @validates("role")
     def sync_role_to_is_admin(self, key: str, value: Role | str) -> Role:
-        parsed_role: Role = Role(value)
-        self.is_admin = (parsed_role == Role.admin)
+        parsed_role = Role(value)
+        expected_admin = (parsed_role == Role.admin)
+        if self.__dict__.get("is_admin") != expected_admin:
+            self.__dict__["is_admin"] = expected_admin
         return parsed_role
 
     @validates("is_admin")
     def sync_is_admin_to_role(self, key: str, value: bool) -> bool:
-        if value and getattr(self, "role", None) != Role.admin:
-            self.role = Role.admin
-        elif not value and getattr(self, "role", None) == Role.admin:
-            self.role = Role.customer
+        expected_role = Role.admin if value else Role.customer
+        if self.__dict__.get("role") != expected_role:
+            self.__dict__["role"] = expected_role
         return bool(value)
