@@ -26,8 +26,8 @@ class Settings(BaseSettings):
     # Rate limiting
     rate_limit_enabled: bool = True
     rate_limit_window_seconds: int = 60
-    login_rate_limit: int = 15
-    register_rate_limit: int = 10
+    login_rate_limit: int = 10
+    register_rate_limit: int = 5
     refresh_rate_limit: int = 30
 
     # Frontend origins allowed to call the API (VS Code Live Server by default).

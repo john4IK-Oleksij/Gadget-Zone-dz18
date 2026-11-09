@@ -54,7 +54,9 @@ class User(Base):
 
     @validates("is_admin")
     def sync_is_admin_to_role(self, key: str, value: bool) -> bool:
-        expected_role = Role.admin if value else Role.customer
-        if self.__dict__.get("role") != expected_role:
-            self.__dict__["role"] = expected_role
+        if value:
+            self.__dict__["role"] = Role.admin
+        else:
+            if self.__dict__.get("role") == Role.admin:
+                self.__dict__["role"] = Role.customer
         return bool(value)
