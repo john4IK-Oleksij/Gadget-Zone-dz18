@@ -177,9 +177,8 @@ async function loadUsers(usersContainer, currentUser, onUserChanged) {
                 const delBtn = createElement('button', 'button button--danger admin-table__action-btn', 'Delete');
                 delBtn.type = 'button';
                 delBtn.addEventListener('click', async () => {
-                    if (!window.confirm(`Are you sure you want to permanently delete user ${u.email}?`)) {
-                        return;
-                    }
+                    const confirmed = await confirmUserDeletion(u.email);
+                    if (!confirmed) return;
                     try {
                         await apiRequest(`/admin/users/${u.id}`, { method: 'DELETE' });
                         showBanner(`User ${u.email} deleted`, 'info');
@@ -471,6 +470,53 @@ function buildProductForm(formCard, onSaved, onCancel) {
     formCard.append(title, form);
     formCard.hidden = false;
     formCard.scrollIntoView({ behavior: 'smooth' });
+}
+
+function confirmUserDeletion(userEmail) {
+    return new Promise((resolve) => {
+        const overlay = createElement('div', 'modal-overlay');
+        const dialog = createElement('div', 'modal-dialog card');
+
+        const title = createElement('h3', 'modal-dialog__title', 'Delete User');
+        const message = createElement(
+            'p',
+            'modal-dialog__message',
+            `Are you sure you want to permanently delete user "${userEmail}"? This action cannot be undone.`
+        );
+
+        const actions = createElement('div', 'modal-dialog__actions');
+
+        const cancelBtn = createElement('button', 'button button--outline', 'Cancel');
+        cancelBtn.type = 'button';
+
+        const deleteBtn = createElement('button', 'button button--danger', 'Delete');
+        deleteBtn.type = 'button';
+
+        const cleanup = (confirmed) => {
+            overlay.remove();
+            document.removeEventListener('keydown', onKeyDown);
+            resolve(confirmed);
+        };
+
+        const onKeyDown = (e) => {
+            if (e.key === 'Escape') cleanup(false);
+        };
+
+        cancelBtn.addEventListener('click', () => cleanup(false));
+        deleteBtn.addEventListener('click', () => cleanup(true));
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) cleanup(false);
+        });
+
+        document.addEventListener('keydown', onKeyDown);
+
+        actions.append(cancelBtn, deleteBtn);
+        dialog.append(title, message, actions);
+        overlay.append(dialog);
+        document.body.append(overlay);
+
+        deleteBtn.focus();
+    });
 }
 
 function confirmProductDeletion(productTitle) {
