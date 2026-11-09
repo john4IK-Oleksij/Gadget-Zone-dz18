@@ -204,7 +204,7 @@ function openChangePasswordModal() {
 function buildActions(role, user) {
     const actions = createElement('div', 'site-header__actions');
 
-    if (role === ROLE.USER) {
+    if (role === ROLE.USER || role === ROLE.MANAGER) {
         const cartWrapper = createElement('div', 'site-header__cart-wrapper');
         setupMiniCart(cartWrapper);
         actions.append(cartWrapper);

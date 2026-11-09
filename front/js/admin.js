@@ -721,7 +721,9 @@ async function loadProducts(productsContainer, formCard, onProductChanged, curre
             const tdStock = createElement('td', 'admin-table__stock');
             tdStock.textContent = String(p.stock_quantity);
             if (isSoldOut(p)) {
-                tdStock.append(createElement('span', ' ', ''), createSoldOutBadge('badge--small'));
+                const soldOutBadge = createSoldOutBadge('badge--small');
+                soldOutBadge.style.marginLeft = '8px';
+                tdStock.append(soldOutBadge);
             }
 
             // Actions
