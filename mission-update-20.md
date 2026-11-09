@@ -103,5 +103,5 @@ flowchart TD
   - Тест спрацьовування Rate Limiter (429).
   - Тест наявності індустріальних Security Headers.
 - [x] Запуск тестів: перевірка 100% успішності (31 passed, 0 failed).
-- [ ] Запушити гілку `feature/dz19-token-security-rbac` на GitHub і оформити Pull Request.
+- [x] Запушити гілку `feature/dz19-token-security-rbac` на GitHub і оформити Pull Request.
 - **Контрольна точка:** Готове посилання на PR для викладача.
