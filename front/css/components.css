@@ -1278,6 +1278,21 @@
     color: var(--color-cream);
 }
 
+.badge--manager {
+    background: #0284c7;
+    color: #ffffff;
+}
+
+.badge--active {
+    background: #16a34a;
+    color: #ffffff;
+}
+
+.badge--blocked {
+    background: #dc2626;
+    color: #ffffff;
+}
+
 .badge--user {
     background: var(--color-border);
     color: var(--color-dark-green);

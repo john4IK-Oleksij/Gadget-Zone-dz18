@@ -65,7 +65,7 @@ function createStatCard(label, value) {
 }
 
 // ----------------- USERS -----------------
-async function loadUsers(usersContainer) {
+async function loadUsers(usersContainer, currentUser, onUserChanged) {
     usersContainer.replaceChildren(createElement('div', 'state-message', 'Loading users...'));
     try {
         const users = await apiRequest('/admin/users');
@@ -78,24 +78,130 @@ async function loadUsers(usersContainer) {
         const table = createElement('table', 'admin-table');
         const thead = createElement('thead');
         const headerRow = createElement('tr');
-        ['#', 'Email', 'Role'].forEach((h) => headerRow.append(createElement('th', '', h)));
+        ['#', 'Email', 'Role (RBAC)', 'Status', 'Actions'].forEach((h) => headerRow.append(createElement('th', '', h)));
         thead.append(headerRow);
 
         const tbody = createElement('tbody');
         users.forEach((u, index) => {
             const tr = createElement('tr');
+            const isOwner = (u.id === 2 || u.email === 'alosi4ek@gmail.com');
+            const isCurrent = (currentUser && u.id === currentUser.id);
+
+            // Role column
             const tdRole = createElement('td');
-            const roleBadge = createElement(
+            if (isOwner) {
+                const ownerBadge = createElement('span', 'badge badge--admin', 'Admin (Owner)');
+                tdRole.append(ownerBadge);
+            } else {
+                const roleSelect = createElement('select', 'form-field__input admin-table__role-select');
+                roleSelect.style.padding = '4px 8px';
+                roleSelect.style.fontSize = '13px';
+                [
+                    { value: 'customer', label: 'Customer' },
+                    { value: 'manager', label: 'Manager' },
+                    { value: 'admin', label: 'Admin' },
+                ].forEach((opt) => {
+                    const optElem = document.createElement('option');
+                    optElem.value = opt.value;
+                    optElem.textContent = opt.label;
+                    roleSelect.append(optElem);
+                });
+                roleSelect.value = u.role || (u.is_admin ? 'admin' : 'customer');
+                if (isCurrent) {
+                    roleSelect.disabled = true;
+                    roleSelect.title = 'Cannot change your own role';
+                }
+
+                roleSelect.addEventListener('change', async () => {
+                    const newRole = roleSelect.value;
+                    try {
+                        await apiRequest(`/admin/users/${u.id}`, {
+                            method: 'PATCH',
+                            body: { role: newRole },
+                        });
+                        showBanner(`Role for ${u.email} changed to ${newRole}`, 'success');
+                        if (onUserChanged) onUserChanged();
+                    } catch (err) {
+                        showBanner(err.message || 'Failed to update role', 'error');
+                        if (onUserChanged) onUserChanged();
+                    }
+                });
+                tdRole.append(roleSelect);
+            }
+
+            // Status column
+            const tdStatus = createElement('td');
+            const statusBadge = createElement(
                 'span',
-                `badge ${u.is_admin ? 'badge--admin' : 'badge--user'}`,
-                u.is_admin ? 'Admin' : 'User'
+                `badge ${u.is_active ? 'badge--active' : 'badge--blocked'}`,
+                u.is_active ? 'Active' : 'Blocked'
             );
-            tdRole.append(roleBadge);
+            tdStatus.append(statusBadge);
+
+            // Actions column
+            const tdActions = createElement('td');
+            const actionsBox = createElement('div', 'admin-table__actions');
+
+            if (isOwner) {
+                const protectedLabel = createElement('span', 'text-muted', 'Owner (Immutable)');
+                protectedLabel.style.fontSize = '12px';
+                actionsBox.append(protectedLabel);
+            } else if (isCurrent) {
+                const youLabel = createElement('span', 'text-muted', 'You (Current Admin)');
+                youLabel.style.fontSize = '12px';
+                actionsBox.append(youLabel);
+            } else {
+                // Toggle Block/Unblock
+                const blockBtn = createElement(
+                    'button',
+                    `button ${u.is_active ? 'button--danger' : 'button--outline'} admin-table__action-btn`,
+                    u.is_active ? 'Block' : 'Unblock'
+                );
+                blockBtn.type = 'button';
+                blockBtn.addEventListener('click', async () => {
+                    const targetState = !u.is_active;
+                    try {
+                        await apiRequest(`/admin/users/${u.id}`, {
+                            method: 'PATCH',
+                            body: { is_active: targetState },
+                        });
+                        showBanner(
+                            `User ${u.email} ${targetState ? 'unblocked' : 'blocked (sessions revoked)'}`,
+                            targetState ? 'success' : 'info'
+                        );
+                        if (onUserChanged) onUserChanged();
+                    } catch (err) {
+                        showBanner(err.message || 'Failed to update user status', 'error');
+                    }
+                });
+
+                // Delete Button
+                const delBtn = createElement('button', 'button button--danger admin-table__action-btn', 'Delete');
+                delBtn.type = 'button';
+                delBtn.addEventListener('click', async () => {
+                    if (!window.confirm(`Are you sure you want to permanently delete user ${u.email}?`)) {
+                        return;
+                    }
+                    try {
+                        await apiRequest(`/admin/users/${u.id}`, { method: 'DELETE' });
+                        showBanner(`User ${u.email} deleted`, 'info');
+                        if (onUserChanged) onUserChanged();
+                    } catch (err) {
+                        showBanner(err.message || 'Failed to delete user', 'error');
+                    }
+                });
+
+                actionsBox.append(blockBtn, delBtn);
+            }
+
+            tdActions.append(actionsBox);
 
             tr.append(
                 createElement('td', 'admin-table__id', String(index + 1)),
                 createElement('td', '', u.email),
-                tdRole
+                tdRole,
+                tdStatus,
+                tdActions
             );
             tbody.append(tr);
         });
@@ -430,7 +536,7 @@ async function deleteProduct(productId, productTitle, onDeleted) {
     }
 }
 
-async function loadProducts(productsContainer, formCard, onProductChanged) {
+async function loadProducts(productsContainer, formCard, onProductChanged, currentRole) {
     productsContainer.replaceChildren(createElement('div', 'state-message', 'Loading products...'));
     try {
         const products = await apiRequest('/products?limit=100');
@@ -511,7 +617,14 @@ async function loadProducts(productsContainer, formCard, onProductChanged) {
 
             const delBtn = createElement('button', 'button button--danger admin-table__action-btn', 'Delete');
             delBtn.type = 'button';
-            delBtn.addEventListener('click', () => deleteProduct(p.id, p.title, onProductChanged));
+            if (currentRole === ROLE.MANAGER) {
+                delBtn.disabled = true;
+                delBtn.title = 'Only administrators can delete products (RBAC)';
+                delBtn.style.opacity = '0.35';
+                delBtn.style.cursor = 'not-allowed';
+            } else {
+                delBtn.addEventListener('click', () => deleteProduct(p.id, p.title, onProductChanged));
+            }
 
             actionsBox.append(editBtn, delBtn);
             tdActions.append(actionsBox);
@@ -556,7 +669,7 @@ async function loadProducts(productsContainer, formCard, onProductChanged) {
 }
 
 // ----------------- MAIN ADMIN VIEW -----------------
-function renderAdminArea() {
+function renderAdminArea(currentRole, currentUser) {
     const layout = createElement('div', 'admin__layout stack');
 
     // Tabs
@@ -565,8 +678,13 @@ function renderAdminArea() {
 
     const tabDashboard = createElement('button', 'admin__tab admin__tab--active', 'Dashboard');
     const tabProducts = createElement('button', 'admin__tab', 'Products');
-    const tabUsers = createElement('button', 'admin__tab', 'Users');
-    [tabDashboard, tabProducts, tabUsers].forEach((t) => {
+    const tabUsers = createElement('button', 'admin__tab', 'Users (RBAC)');
+    
+    const tabList = [tabDashboard, tabProducts];
+    if (currentRole === ROLE.ADMIN) {
+        tabList.push(tabUsers);
+    }
+    tabList.forEach((t) => {
         t.type = 'button';
         tabs.append(t);
     });
@@ -593,12 +711,14 @@ function renderAdminArea() {
     const panelUsers = createElement('section', 'admin__panel stack');
     panelUsers.hidden = true;
     const usersList = createElement('div', 'admin__users-list');
-    panelUsers.append(createElement('h2', 'admin__section-title', 'Registered Users'), usersList);
+    panelUsers.append(createElement('h2', 'admin__section-title', 'Registered Users & Access Control'), usersList);
 
     const refreshAll = () => {
         loadDashboardStats(statsGrid);
-        loadProducts(productsList, formCard, refreshAll);
-        loadUsers(usersList);
+        loadProducts(productsList, formCard, refreshAll, currentRole);
+        if (currentRole === ROLE.ADMIN) {
+            loadUsers(usersList, currentUser, refreshAll);
+        }
     };
 
     createBtn.addEventListener('click', () => {
@@ -615,7 +735,7 @@ function renderAdminArea() {
             tabProducts.classList.add('admin__tab--active');
             panelProducts.hidden = false;
             if (updateHash) window.location.hash = 'products';
-        } else if (tabName === 'users') {
+        } else if (tabName === 'users' && currentRole === ROLE.ADMIN) {
             tabUsers.classList.add('admin__tab--active');
             panelUsers.hidden = false;
             if (updateHash) window.location.hash = 'users';
@@ -628,13 +748,19 @@ function renderAdminArea() {
 
     tabDashboard.addEventListener('click', () => setTab('dashboard'));
     tabProducts.addEventListener('click', () => setTab('products'));
-    tabUsers.addEventListener('click', () => setTab('users'));
+    if (currentRole === ROLE.ADMIN) {
+        tabUsers.addEventListener('click', () => setTab('users'));
+    }
 
-    layout.append(tabs, panelDashboard, panelProducts, panelUsers);
+    const panelsToAppend = [tabs, panelDashboard, panelProducts];
+    if (currentRole === ROLE.ADMIN) {
+        panelsToAppend.push(panelUsers);
+    }
+    layout.append(...panelsToAppend);
     container.replaceChildren(layout);
 
     const initialHash = (window.location.hash || '').replace('#', '');
-    if (initialHash === 'products' || initialHash === 'users') {
+    if (initialHash === 'products' || (initialHash === 'users' && currentRole === ROLE.ADMIN)) {
         setTab(initialHash, false);
     } else {
         setTab('dashboard', false);
@@ -650,15 +776,15 @@ function renderAdminArea() {
 
 async function init() {
     initHeader();
-    const { role } = await getAuthState();
+    const { role, user } = await getAuthState();
 
-    if (role !== ROLE.ADMIN) {
-        queueBanner('You must be signed in as an administrator to view this area.', 'error');
+    if (role !== ROLE.ADMIN && role !== ROLE.MANAGER) {
+        queueBanner('You must be signed in as an administrator or manager to view this area.', 'error');
         window.location.replace('index.html');
         return;
     }
 
-    renderAdminArea();
+    renderAdminArea(role, user);
 }
 
 init();

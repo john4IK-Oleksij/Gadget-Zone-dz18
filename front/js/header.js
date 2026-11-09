@@ -68,8 +68,8 @@ function buildNav(role, currentPage) {
     nav.setAttribute('aria-label', 'Main navigation');
 
     const items = [{ href: 'index.html', text: 'Shop' }];
-    if (role === ROLE.ADMIN) {
-        items.push({ href: 'admin.html', text: 'Admin' });
+    if (role === ROLE.ADMIN || role === ROLE.MANAGER) {
+        items.push({ href: 'admin.html', text: role === ROLE.ADMIN ? 'Admin' : 'Management' });
     }
 
     items.forEach((item) => {
