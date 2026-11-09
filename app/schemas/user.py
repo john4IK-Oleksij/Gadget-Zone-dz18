@@ -46,3 +46,7 @@ class UserAdminUpdate(BaseModel):
 class UserChangePassword(BaseModel):
     old_password: str
     new_password: str
+
+
+class UserAdminResetPassword(BaseModel):
+    new_password: str

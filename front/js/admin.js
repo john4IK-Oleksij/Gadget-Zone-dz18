@@ -188,7 +188,13 @@ async function loadUsers(usersContainer, currentUser, onUserChanged) {
                     }
                 });
 
-                actionsBox.append(blockBtn, delBtn);
+                // Reset Password Button
+                const resetBtn = createElement('button', 'button button--outline admin-table__action-btn', '🔑 Reset');
+                resetBtn.type = 'button';
+                resetBtn.title = 'Set a new password for this user';
+                resetBtn.addEventListener('click', () => openAdminResetModal(u, onUserChanged));
+
+                actionsBox.append(blockBtn, resetBtn, delBtn);
             }
 
             tdActions.append(actionsBox);
@@ -470,6 +476,90 @@ function buildProductForm(formCard, onSaved, onCancel) {
     formCard.append(title, form);
     formCard.hidden = false;
     formCard.scrollIntoView({ behavior: 'smooth' });
+}
+
+function openAdminResetModal(user, onUserChanged) {
+    const overlay = createElement('div', 'modal-overlay');
+    const dialog = createElement('div', 'modal-dialog card');
+
+    const title = createElement('h3', 'modal-dialog__title', `Reset Password: ${user.email}`);
+    const form = createElement('form', 'stack');
+
+    const pwdField = createElement('div', 'form-field');
+    const pwdLabel = createElement('label', 'form-field__label', 'New Password (min 8 chars) *');
+    const pwdInput = createElement('input', 'form-field__input');
+    pwdInput.type = 'text';
+    pwdInput.required = true;
+    pwdInput.minLength = 8;
+    pwdInput.value = '12345678';
+    pwdField.append(pwdLabel, pwdInput);
+
+    const warnMsg = createElement(
+        'p',
+        'modal-dialog__message',
+        'All active sessions for this user will be revoked immediately.'
+    );
+    warnMsg.style.marginBottom = 'var(--space-12)';
+
+    const errorBox = createElement('p', 'state-message state-message--error');
+    errorBox.hidden = true;
+
+    const actions = createElement('div', 'modal-dialog__actions');
+    const cancelBtn = createElement('button', 'button button--outline', 'Cancel');
+    cancelBtn.type = 'button';
+    const saveBtn = createElement('button', 'button button--danger', 'Save New Password');
+    saveBtn.type = 'submit';
+
+    actions.append(cancelBtn, saveBtn);
+    form.append(pwdField, warnMsg, errorBox, actions);
+    dialog.append(title, form);
+    overlay.append(dialog);
+    document.body.append(overlay);
+
+    pwdInput.focus();
+
+    const cleanup = () => {
+        overlay.remove();
+        document.removeEventListener('keydown', onKeyDown);
+    };
+
+    const onKeyDown = (e) => {
+        if (e.key === 'Escape') cleanup();
+    };
+
+    cancelBtn.addEventListener('click', cleanup);
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) cleanup();
+    });
+    document.addEventListener('keydown', onKeyDown);
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const new_password = pwdInput.value;
+        if (new_password.length < 8) {
+            errorBox.textContent = 'Password must be at least 8 characters long';
+            errorBox.hidden = false;
+            return;
+        }
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+
+        try {
+            await apiRequest(`/admin/users/${user.id}/reset-password`, {
+                method: 'POST',
+                body: { new_password },
+            });
+            cleanup();
+            showBanner(`Password for ${user.email} reset to "${new_password}"`, 'success');
+            if (onUserChanged) onUserChanged();
+        } catch (err) {
+            errorBox.textContent = err.message || 'Failed to reset password';
+            errorBox.hidden = false;
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save New Password';
+        }
+    });
 }
 
 function confirmUserDeletion(userEmail) {

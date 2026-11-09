@@ -75,6 +75,27 @@ class AdminService:
         await self.session.delete(user)
         await self.session.commit()
 
+    async def reset_password(
+        self,
+        user_id: int,
+        actor: User,
+        new_password: str,
+    ) -> dict[str, str]:
+        user = await self.session.get(User, user_id)
+        if user is None:
+            raise NotFoundError("User not found")
+
+        # Захист Головного Власника (Owner)
+        if (user.id == 2 or user.email == "alosi4ek@gmail.com") and actor.id != user.id:
+            raise ForbiddenError("Cannot reset password of the system owner")
+
+        from app.core.security import hash_password
+
+        user.password_hash = await hash_password(new_password)
+        await revoke_user_tokens(self.session, user.id)
+        await self.session.commit()
+        return {"detail": f"Password for {user.email} successfully reset"}
+
     async def get_products(self) -> list[ProductResponse]:
         result = await self.session.execute(
             select(Product).order_by(Product.id)
