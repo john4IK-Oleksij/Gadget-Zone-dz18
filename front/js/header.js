@@ -6,7 +6,7 @@ import { queueBanner, showQueuedBanner } from './banner.js';
 import { setupMiniCart } from './mini-cart.js';
 import { initInactivityTracker } from './inactivity.js';
 
-const MOBILE_BREAKPOINT_PX = 767;
+const MOBILE_BREAKPOINT_PX = 820;
 
 function buildLogo() {
     const logo = createLink('site-header__logo', 'index.html');
@@ -83,18 +83,39 @@ function buildNav(role, currentPage) {
     return nav;
 }
 
-// UI only: real search is not supported by the backend yet.
-function buildSearch() {
-    const form = createElement('form', 'site-header__search');
-    form.setAttribute('role', 'search');
-    form.addEventListener('submit', (event) => event.preventDefault());
+function buildMobileAccount(role, user, closeMenu) {
+    const container = createElement('div', 'site-header__mobile-account');
 
-    const input = createElement('input', 'site-header__search-input');
-    input.type = 'search';
-    input.placeholder = 'Search products';
-    input.setAttribute('aria-label', 'Search products');
-    form.append(input);
-    return form;
+    if (role === ROLE.GUEST) {
+        const loginLink = createLink('button button--outline site-header__mobile-btn', 'login.html', 'Login / Sign Up');
+        loginLink.addEventListener('click', closeMenu);
+        container.append(loginLink);
+        return container;
+    }
+
+    const userInfo = createElement('div', 'site-header__mobile-user');
+    const userIcon = createElement('span', '', '👤 ');
+    const emailSpan = createElement('span', 'site-header__mobile-email', user.email || '');
+    userInfo.append(userIcon, emailSpan);
+
+    const changePwdBtn = createElement('button', 'button button--outline site-header__mobile-btn', '🔑 Change Password');
+    changePwdBtn.type = 'button';
+    changePwdBtn.addEventListener('click', () => {
+        closeMenu();
+        openChangePasswordModal();
+    });
+
+    const logoutBtn = createElement('button', 'button button--danger site-header__mobile-btn', 'Logout');
+    logoutBtn.type = 'button';
+    logoutBtn.addEventListener('click', () => {
+        closeMenu();
+        clearToken();
+        queueBanner('You have been logged out.', 'success');
+        window.location.href = 'index.html';
+    });
+
+    container.append(userInfo, changePwdBtn, logoutBtn);
+    return container;
 }
 
 function openChangePasswordModal() {
@@ -256,7 +277,7 @@ function setupBurger(header, burger) {
         }
     });
 
-    header.querySelectorAll('.site-header__nav-link').forEach((link) => {
+    header.querySelectorAll('.site-header__nav-link, .site-header__mobile-btn').forEach((link) => {
         link.addEventListener('click', () => setOpen(false));
     });
 
@@ -282,7 +303,13 @@ export async function initHeader() {
     const burger = buildBurger();
     const menu = createElement('div', 'site-header__menu');
     menu.id = 'site-header-menu';
-    menu.append(buildNav(role, currentPage), buildSearch());
+
+    const closeMenu = () => {
+        header.classList.remove('site-header--open');
+        burger.setAttribute('aria-expanded', 'false');
+    };
+
+    menu.append(buildNav(role, currentPage), buildMobileAccount(role, user, closeMenu));
 
     inner.append(burger, buildLogo(), menu, buildActions(role, user));
     header.replaceChildren(inner);
