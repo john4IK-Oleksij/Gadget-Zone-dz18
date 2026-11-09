@@ -107,16 +107,7 @@ class AuthService:
 
     async def logout_all(self, user_id: int) -> None:
         """Відкликає всі активні сесії користувача з усіх пристроїв."""
-        stmt = (
-            update(RefreshToken)
-            .where(
-                RefreshToken.user_id == user_id,
-                RefreshToken.revoked_at.is_(None),
-            )
-            .values(revoked_at=utcnow())
-        )
-        await self.session.execute(stmt)
-        await self.session.commit()
+        await revoke_user_tokens(self.session, user_id)
 
     async def _issue_pair(self, user_id: int, family_id: str) -> TokenPair:
         raw_refresh = generate_refresh_token()
@@ -148,3 +139,18 @@ class AuthService:
         )
         await self.session.execute(stmt)
         await self.session.commit()
+
+
+async def revoke_user_tokens(session: AsyncSession, user_id: int) -> None:
+    """Анулює всі активні рефреш-токени користувача в базі даних."""
+    stmt = (
+        update(RefreshToken)
+        .where(
+            RefreshToken.user_id == user_id,
+            RefreshToken.revoked_at.is_(None),
+        )
+        .values(revoked_at=utcnow())
+    )
+    await session.execute(stmt)
+    await session.commit()
+

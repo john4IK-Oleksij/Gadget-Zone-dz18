@@ -1,13 +1,13 @@
-from typing import Annotated
-
 import os
 import shutil
 import uuid
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.dependencies.auth import AdminUser
+from app.dependencies.auth import AdminUser, ManagerUser
 from app.schemas.product import ProductCreate, ProductResponse, ProductUpdate
 from app.services.product import ProductService
 
@@ -70,7 +70,7 @@ async def get_product(
 async def create_product(
     data: ProductCreate,
     session: DbSession,
-    admin: AdminUser,
+    manager: ManagerUser,
 ):
     service = ProductService(session)
 
@@ -85,7 +85,7 @@ async def update_product(
     product_id: int,
     data: ProductUpdate,
     session: DbSession,
-    admin: AdminUser,
+    manager: ManagerUser,
 ):
     service = ProductService(session)
 
@@ -109,12 +109,13 @@ async def delete_product(
 
     await service.delete(product)
 
+
 @router.post(
     "/upload-image",
     status_code=status.HTTP_201_CREATED,
 )
 async def upload_product_image(
-    admin: AdminUser,
+    manager: ManagerUser,
     file: UploadFile = File(...),
 ):
     if not file.content_type or not file.content_type.startswith("image/"):

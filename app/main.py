@@ -13,7 +13,7 @@ from app.api.cart import router as cart_router
 from app.api.products import router as products_router
 from app.api.users import router as users_router
 from app.core.config import settings
-from app.core.exceptions import ConflictError, NotFoundError
+from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from app.db.init_db import init_db
 from app.db.session import AsyncSessionLocal, engine
 
@@ -60,6 +60,17 @@ async def conflict_exception_handler(
 ):
     return JSONResponse(
         status_code=409,
+        content={"detail": exc.message},
+    )
+
+
+@app.exception_handler(ForbiddenError)
+async def forbidden_exception_handler(
+    request: Request,
+    exc: ForbiddenError,
+):
+    return JSONResponse(
+        status_code=403,
         content={"detail": exc.message},
     )
 

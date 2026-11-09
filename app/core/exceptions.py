@@ -6,5 +6,10 @@ class AppException(Exception):
 class NotFoundError(AppException):
     pass
 
+
 class ConflictError(AppException):
+    pass
+
+
+class ForbiddenError(AppException):
     pass
