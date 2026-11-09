@@ -23,6 +23,13 @@ class Settings(BaseSettings):
     cookie_secure: bool = False
     cookie_samesite: Literal["lax", "strict", "none"] = "lax"
 
+    # Rate limiting
+    rate_limit_enabled: bool = True
+    rate_limit_window_seconds: int = 60
+    login_rate_limit: int = 15
+    register_rate_limit: int = 10
+    refresh_rate_limit: int = 30
+
     # Frontend origins allowed to call the API (VS Code Live Server by default).
     cors_origins: list[str] = [
         "http://127.0.0.1:5500",

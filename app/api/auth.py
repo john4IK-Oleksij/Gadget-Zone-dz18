@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cookies import clear_refresh_cookie, set_refresh_cookie
+from app.core.rate_limit import rate_limit
 from app.core.security import hash_password
 from app.db.session import get_db
 from app.dependencies.auth import CurrentUser
@@ -33,6 +34,7 @@ DbSession = Annotated[
     "/register",
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit("register"))],
 )
 async def register(
     data: UserCreate,
@@ -66,6 +68,7 @@ async def register(
 @router.post(
     "/login",
     response_model=TokenResponse,
+    dependencies=[Depends(rate_limit("login"))],
 )
 async def login(
     response: Response,
@@ -100,6 +103,7 @@ async def login(
 @router.post(
     "/refresh",
     response_model=TokenResponse,
+    dependencies=[Depends(rate_limit("refresh"))],
 )
 async def refresh_tokens(
     request: Request,

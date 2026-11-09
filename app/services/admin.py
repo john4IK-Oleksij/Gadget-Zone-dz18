@@ -39,6 +39,10 @@ class AdminService:
         if user.id == actor.id and any(k in changes for k in ("role", "is_active")):
             raise ForbiddenError("Cannot change your own role or deactivate yourself")
 
+        # Захист Головного Власника (Owner): ніхто не може понизити чи заблокувати обліковий запис ID=1
+        if user.id == 1 and actor.id != 1 and any(k in changes for k in ("role", "is_active")):
+            raise ForbiddenError("Cannot modify the role or status of the system owner")
+
         if data.role is not None:
             user.role = data.role
         if data.is_active is not None:
@@ -61,6 +65,10 @@ class AdminService:
 
         if user.id == actor.id:
             raise ForbiddenError("Cannot delete your own account")
+
+        # Захист Головного Власника (Owner): ніхто не може видалити акаунт ID=1
+        if user.id == 1:
+            raise ForbiddenError("Cannot delete the system owner account")
 
         await self.session.delete(user)
         await self.session.commit()
