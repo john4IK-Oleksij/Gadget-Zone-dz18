@@ -7,7 +7,8 @@ from app.models.user import User
 
 async def create_admin_token(client: AsyncClient) -> str:
     """Helper to create an admin user and return their token."""
-    email = f"admin{id(client)}@example.com"
+    import uuid
+    email = f"admin_{uuid.uuid4().hex[:8]}@example.com"
     password = "adminpass"
 
     register_response = await client.post(

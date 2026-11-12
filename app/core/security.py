@@ -1,3 +1,6 @@
+import asyncio
+import hashlib
+import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -7,24 +10,43 @@ from pwdlib import PasswordHash
 from app.core.config import settings
 
 password_hasher = PasswordHash.recommended()
+# Захист від атак за часом (Timing Attack): згенерований еталонний хеш для неіснуючих користувачів
+DUMMY_HASH: str = password_hasher.hash("timing-attack-protection-dummy-password")
 
 
-def hash_password(password: str) -> str:
-    return password_hasher.hash(password)
+def utcnow() -> datetime:
+    return datetime.now(UTC)
 
 
-def verify_password(
+async def hash_password(password: str) -> str:
+    """Хешує пароль у фоновому потоці (не блокуючи asyncio event loop)."""
+    return await asyncio.to_thread(password_hasher.hash, password)
+
+
+async def verify_password(
     password: str,
     password_hash: str,
 ) -> bool:
-    return password_hasher.verify(
+    """Перевіряє пароль у фоновому потоці (не блокуючи asyncio event loop)."""
+    return await asyncio.to_thread(
+        password_hasher.verify,
         password,
         password_hash,
     )
 
 
+def generate_refresh_token() -> str:
+    """Генерує криптографічно стійкий випадковий рядок для Refresh Token (64 символи)."""
+    return secrets.token_urlsafe(48)
+
+
+def hash_token(token: str) -> str:
+    """Обчислює SHA-256 хеш токена для безпечного збереження в базі даних."""
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
 def create_access_token(user_id: int) -> str:
-    now = datetime.now(UTC)
+    now = utcnow()
 
     payload: dict[str, Any] = {
         "sub": str(user_id),
@@ -42,7 +64,8 @@ def create_access_token(user_id: int) -> str:
 
 
 def create_refresh_token(user_id: int) -> str:
-    now = datetime.now(UTC)
+    """Сумісність: створює JWT рефреш-токен, якщо потрібен у старому форматі."""
+    now = utcnow()
 
     payload: dict[str, Any] = {
         "sub": str(user_id),

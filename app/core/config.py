@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -17,6 +19,16 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_ttl_minutes: int = 15
     refresh_token_ttl_days: int = 7
+
+    cookie_secure: bool = False
+    cookie_samesite: Literal["lax", "strict", "none"] = "lax"
+
+    # Rate limiting
+    rate_limit_enabled: bool = True
+    rate_limit_window_seconds: int = 60
+    login_rate_limit: int = 10
+    register_rate_limit: int = 5
+    refresh_rate_limit: int = 30
 
     # Frontend origins allowed to call the API (VS Code Live Server by default).
     cors_origins: list[str] = [

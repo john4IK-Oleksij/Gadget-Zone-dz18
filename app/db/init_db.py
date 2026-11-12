@@ -1,18 +1,46 @@
+import asyncio
 import json
 import os
 from decimal import Decimal
+from typing import Any
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.db.base import Base
-from app.models import CartItem, Product, User  # noqa: F401
+from app.models import CartItem, Product, RefreshToken, User
+
+# Ensure all models are registered on Base metadata
+_ALL_MODELS = (CartItem, Product, RefreshToken, User)
+
+
+def _load_seed_json(path: str) -> dict[str, Any]:
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 
 async def init_db(engine: AsyncEngine) -> None:
     # 1. Create tables if they do not exist
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
+
+        # Self-healing schema migration for existing MySQL database (DZ-18 -> DZ-19)
+        try:
+            await connection.execute(
+                text("ALTER TABLE users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'customer'")
+            )
+            await connection.execute(
+                text("UPDATE users SET role = 'admin' WHERE is_admin = 1")
+            )
+        except Exception:
+            pass
+
+        try:
+            await connection.execute(
+                text("ALTER TABLE users ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1")
+            )
+        except Exception:
+            pass
 
     session_maker = async_sessionmaker(
         bind=engine,
@@ -26,11 +54,10 @@ async def init_db(engine: AsyncEngine) -> None:
     if not os.path.exists(seed_file_path):
         return
 
-    with open(seed_file_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
+    data = await asyncio.to_thread(_load_seed_json, seed_file_path)
 
-    products_data = data.get("products", [])
-    users_data = data.get("users", [])
+    products_data: list[dict[str, Any]] = data.get("products", [])
+    users_data: list[dict[str, Any]] = data.get("users", [])
 
     async with session_maker() as session:
         # Check current products count
@@ -48,18 +75,15 @@ async def init_db(engine: AsyncEngine) -> None:
                     description=p["description"],
                     image=p["image"],
                     price=Decimal(str(p["price"])),
-                    old_price=(
-                        Decimal(str(p["old_price"]))
-                        if p["old_price"] is not None
-                        else None
-                    ),
+                    old_price=Decimal(str(p["old_price"]))
+                    if p.get("old_price") is not None
+                    else None,
                     category=p["category"],
-                    stock_quantity=int(p["stock_quantity"]),
+                    stock_quantity=p.get("stock_quantity", 0),
                     is_active=bool(p.get("is_active", True)),
                 )
                 session.add(product)
             await session.commit()
-            print(f"Successfully synchronized {len(products_data)} products into database!")
 
         # Sync user accounts (including admin with original password hash)
         for u in users_data:
@@ -80,4 +104,3 @@ async def init_db(engine: AsyncEngine) -> None:
                 )
                 session.add(new_user)
         await session.commit()
-        print(f"Successfully synchronized {len(users_data)} users into database!")

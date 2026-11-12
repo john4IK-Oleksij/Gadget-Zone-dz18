@@ -3,6 +3,9 @@ import os
 import sys
 from typing import AsyncGenerator
 
+# Disable rate limiting for functional tests so it doesn't throttle rapid test runs
+os.environ["RATE_LIMIT_ENABLED"] = "false"
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import (
