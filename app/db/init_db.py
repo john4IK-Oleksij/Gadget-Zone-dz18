@@ -4,7 +4,7 @@ import os
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.db.base import Base
@@ -23,6 +23,24 @@ async def init_db(engine: AsyncEngine) -> None:
     # 1. Create tables if they do not exist
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
+
+        # Self-healing schema migration for existing MySQL database (DZ-18 -> DZ-19)
+        try:
+            await connection.execute(
+                text("ALTER TABLE users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'customer'")
+            )
+            await connection.execute(
+                text("UPDATE users SET role = 'admin' WHERE is_admin = 1")
+            )
+        except Exception:
+            pass
+
+        try:
+            await connection.execute(
+                text("ALTER TABLE users ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1")
+            )
+        except Exception:
+            pass
 
     session_maker = async_sessionmaker(
         bind=engine,
