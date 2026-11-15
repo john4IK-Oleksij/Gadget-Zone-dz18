@@ -76,3 +76,24 @@ _ALL_MODELS = (CartItem, Product, RefreshToken, User)
 - Always import `datetime` and `timezone` from standard `datetime`.
 - Use timezone-aware UTC datetimes: `datetime.now(timezone.utc)`.
 - Restrict cookie `samesite` settings with `Literal["lax", "strict", "none"]` to satisfy Pylance strict parameter typing.
+
+---
+
+## 7. Security & Architecture Golden Standards
+1. **JWT Exception Handling:**
+   - In `app/dependencies/auth.py`, explicitly catch `jwt.exceptions.ExpiredSignatureError` (return 401 with `"Token has expired"`) and `jwt.exceptions.InvalidTokenError` (return 401 with `"Could not validate credentials"`). Never let JWT exceptions raise unhandled HTTP 500 errors.
+2. **Production Security Validation (Fail-Fast):**
+   - In `app/core/config.py`, support `environment: Literal["development", "production", "test"]`.
+   - In production mode, validate that `jwt_secret_key` is explicitly set via environment variables, is at least 32 characters, and is not a default dev key.
+3. **Cookie Security (cookie_secure):**
+   - When `environment == "production"`, `cookie_secure` MUST automatically be `True` (HTTPS only). In development, it MUST be `False` to allow local HTTP testing.
+4. **Refresh Token Exclusively via HttpOnly Cookies:**
+   - Refresh tokens MUST travel ONLY via `HttpOnly` cookies (`path="/auth"`, `samesite="lax"`, `secure=settings.cookie_secure`).
+   - NEVER return or accept refresh tokens in JSON request/response bodies (prevents XSS token exfiltration).
+5. **No Hardcoded Owner / Admin Identifiers:**
+   - System owner/admin email and credentials MUST be loaded from settings (`settings.owner_email` / `OWNER_EMAIL`).
+   - NEVER hardcode specific developer emails or magic user IDs (`id == 2`) in services or controllers.
+6. **Secrets & Environment Isolation:**
+   - `.env` MUST be in `.gitignore` and NEVER tracked in Git.
+   - Maintain `.env.example` with safe placeholder templates for repository consumers.
+

@@ -100,16 +100,36 @@ https://github.com/john4IK-Oleksij/Gadget-Zone-dz18.git
   * Призначення: Отримання нової пари токенів без повторного введення логіну/пароля.
   * Payload: `sub`, `iat`, `exp`, `type: "refresh"`.
   * Час життя (TTL): **7 днів** (налаштовується в `.env` через `REFRESH_TOKEN_TTL_DAYS`).
-  * Передача: Подвійна підтримка — встановлюється бекендом у захищену `HttpOnly` Cookie (`samesite="lax"`, `max_age=7 days`) ТА повертається в JSON тілі відповіді як резервний варіант.
+  * Передача: **ВИКЛЮЧНО через захищену `HttpOnly` Cookie** (`path="/auth"`, `samesite="lax"`, `secure=settings.cookie_secure`, `max_age=7 days`). Заборонено передавати або дублювати refresh-токен у тілі JSON (захист від крадіжки через XSS).
 
 ### 3.2. Ендпоінт ротації токенів `POST /auth/refresh`:
-* Приймає токен з cookie (`request.cookies.get("refresh_token")`) або з JSON-тіла (`body.refresh_token`).
+* Приймає токен **ВИКЛЮЧНО з `HttpOnly` Cookie** (`request.cookies.get("refresh_token")`). Відхиляє запити без куки (HTTP 401).
 * Декодує JWT, суворо перевіряє `isinstance(sub, (str, int))` та валідність підпису.
 * Перевіряє наявність користувача в базі даних.
-* Генерує нову пару токенів та оновлює `HttpOnly` Cookie.
+* Генерує нову пару токенів та оновлює `HttpOnly` Cookie у відповіді.
+* У тілі відповіді повертає лише `access_token` та `token_type: "bearer"` (схема `TokenResponse`).
 * Захист від підміни токенів: токен типу `type: "refresh"` не може бути використаний для доступу до звичайних API-ендпоінтів.
 
-### 3.3. Хешування паролів:
+### 3.3. Обробка помилок JWT у залежностях (`app/dependencies/auth.py`):
+* Обов'язкове явне перехоплення винятків PyJWT:
+  * `jwt.exceptions.ExpiredSignatureError` — повертає `HTTP 401 Unauthorized` з деталлю `"Token has expired"`.
+  * `jwt.exceptions.InvalidTokenError` — повертає `HTTP 401 Unauthorized` з деталлю `"Could not validate credentials"`.
+* Сувора заборона пропускати необроблені винятки JWT, що викликають аварійні `HTTP 500 Internal Server Error`.
+
+### 3.4. Режими середовища та захист секретів (`app/core/config.py`):
+* Наявність параметра `environment: Literal["development", "production", "test"] = "development"`.
+* **Правило Production Fail-Fast:** Якщо `environment == "production"`, заборонено залишати порожнім чи дефолтним `jwt_secret_key` (обов'язковий зчитування з оточення, мінімум 32 символи; інакше додаток відмовляється запускатися).
+* **Динамічний `cookie_secure`:** Для `production` автоматично встановлюється `cookie_secure = True` (куки передаються тільки по HTTPS). Для `development` залишається `cookie_secure = False` (для коректної роботи на `http://localhost`).
+
+### 3.5. Захист Головного Власника (Owner) без хардкоду:
+* Параметри власника системи (`owner_email`) конфігуруються виключно через змінні середовища (`settings.owner_email` / `OWNER_EMAIL`).
+* Категорично заборонено хардкодити особисті email-адреси (наприклад, `alosi4ek@gmail.com`) чи фіксовані ID (`user.id == 2`) у коді сервісів або моделях. Перевірка здійснюється динамічно: `self._is_owner(user)`.
+
+### 3.6. Управління конфігураційними файлами та витоками (.env vs .env.example):
+* Файл `.env` обов'язково занесений до `.gitignore` і ніколи не відстежується в Git.
+* У репозиторії обов'язково підтримується еталонний файл-шаблон `.env.example` із безпечними плейсхолдерами.
+
+### 3.7. Хешування паролів:
 * Використання сучасної бібліотеки `pwdlib` замість застарілої `passlib` (яка має несумісність з новітніми версіями Python 3.13/3.14).
 * Рекомендований алгоритм: **Argon2id** (з автоматичним fallback на bcrypt). Паролі у відкритому вигляді ніколи не зберігаються і не потрапляють у логи.
 

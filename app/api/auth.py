@@ -95,7 +95,6 @@ async def login(
 
     return {
         "access_token": pair.access_token,
-        "refresh_token": pair.refresh_token,
         "token_type": pair.token_type,
     }
 
@@ -108,10 +107,9 @@ async def login(
 async def refresh_tokens(
     request: Request,
     response: Response,
-    session: DbSession,
-    body: RefreshTokenRequest | None = None,
+    session: DbSession
 ) -> dict[str, str]:
-    raw_token = (body and body.refresh_token) or request.cookies.get("refresh_token")
+    raw_token = request.cookies.get("refresh_token")
     if not raw_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -131,7 +129,6 @@ async def refresh_tokens(
 
     return {
         "access_token": pair.access_token,
-        "refresh_token": pair.refresh_token,
         "token_type": pair.token_type,
     }
 

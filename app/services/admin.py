@@ -1,6 +1,7 @@
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.exceptions import ForbiddenError, NotFoundError
 from app.models.product import Product
 from app.models.user import User
@@ -13,6 +14,12 @@ from app.services.auth_service import revoke_user_tokens
 class AdminService:
     def __init__(self, session: AsyncSession):
         self.session = session
+
+    def _is_owner(self, user: User) -> bool:
+        """Перевіряє, чи є користувач головним власником системи."""
+        return bool(
+            settings.owner_email and user.email.lower() == settings.owner_email.lower()
+        )
 
     async def get_users(self) -> list[AdminUserResponse]:
         result = await self.session.execute(
@@ -41,7 +48,7 @@ class AdminService:
             raise ForbiddenError("Cannot change your own role or deactivate yourself")
 
         # Захист Головного Власника (Owner): ніхто не може понизити чи заблокувати обліковий запис власника
-        is_owner = (user.id == 2 or user.email == "alosi4ek@gmail.com")
+        is_owner = self._is_owner(user)
         if is_owner and actor.id != user.id and any(k in changes for k in ("role", "is_active")):
             raise ForbiddenError("Cannot modify the role or status of the system owner")
 
@@ -69,9 +76,8 @@ class AdminService:
             raise ForbiddenError("Cannot delete your own account")
 
         # Захист Головного Власника (Owner): ніхто не може видалити акаунт власника
-        if user.id == 2 or user.email == "alosi4ek@gmail.com":
+        if self._is_owner(user):
             raise ForbiddenError("Cannot delete the system owner account")
-
         await self.session.delete(user)
         await self.session.commit()
 
@@ -86,7 +92,7 @@ class AdminService:
             raise NotFoundError("User not found")
 
         # Захист Головного Власника (Owner)
-        if (user.id == 2 or user.email == "alosi4ek@gmail.com") and actor.id != user.id:
+        if self._is_owner(user) and actor.id != user.id:
             raise ForbiddenError("Cannot reset password of the system owner")
 
         from app.core.security import hash_password

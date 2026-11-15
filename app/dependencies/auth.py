@@ -3,6 +3,7 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import decode_access_token
@@ -34,7 +35,13 @@ async def get_current_user(
     try:
         payload = decode_access_token(token)
         user_id = int(payload["sub"])
-    except (ValueError, TypeError, KeyError):
+    except ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from None
+    except (InvalidTokenError, ValueError, TypeError, KeyError):
         raise credentials_exception from None
 
     user = await session.get(User, user_id)

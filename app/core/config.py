@@ -14,8 +14,12 @@ class Settings(BaseSettings):
     mysqluser: str = ""
     mysqlpassword: str = ""
     mysqldatabase: str = ""
+    owner_email: str = "admin@gadgetzone.com"
 
-    jwt_secret_key: SecretStr = SecretStr("")
+    jwt_secret_key: SecretStr = SecretStr(
+        "insecure-dev-secret-key-change-in-production-min32chars"
+    )
+    environment: Literal["development", "production", "test"] = "development"
     jwt_algorithm: str = "HS256"
     access_token_ttl_minutes: int = 15
     refresh_token_ttl_days: int = 7
@@ -35,6 +39,26 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5500",
         "http://localhost:5500",
     ]
+
+    @model_validator(mode="after")
+    def validate_production_security(self) -> "Settings":
+        key = self.jwt_secret_key.get_secret_value().strip()
+        
+        # Якщо запущено у продакшені:
+        if self.environment == "production":
+            # Автоматично вмикаємо захищені HTTPS-куки 
+            self.cookie_secure = True
+            # 1. Забороняємо пустий або дефолтний ключ
+            if not key or "insecure-dev" in key:
+                raise ValueError(
+                    "CRITICAL SECURITY: In production, JWT_SECRET_KEY must be "
+                    "explicitly provided via environment variables and cannot be empty or default!"
+                )
+            # 2. Перевіряємо довжину ключа (мінімум 32 символи)
+            if len(key) < 32:
+                raise ValueError("JWT_SECRET_KEY must be at least 32 characters long in production!")
+                
+        return self
 
     @model_validator(mode="after")
     def resolve_database_url(self) -> "Settings":

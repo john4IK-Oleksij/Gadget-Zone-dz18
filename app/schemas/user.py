@@ -21,8 +21,7 @@ class UserResponse(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
-    refresh_token: str | None = None
-
+    
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str | None = None

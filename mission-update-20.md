@@ -39,37 +39,45 @@ flowchart TD
 
 ---
 
-### Ітерація 3: Оновлення ядра безпеки (`security.py` та `cookies.py`)
+### Ітерація 3: Оновлення ядра безпеки (`security.py`, `cookies.py` та `config.py`)
 - [x] Оновити `app/core/security.py`:
   - `generate_refresh_token()` через криптографічно стійкий `secrets.token_urlsafe(48)`.
   - `hash_token()` через `hashlib.sha256()`.
   - `hash_password()` та `verify_password()` перевести на `asyncio.to_thread`, щоб не блокувати Event Loop.
   - Додати захист від атак за часом: `DUMMY_HASH`.
 - [x] Оновити `app/core/cookies.py`:
-  - Обмеження `Path="/api/v1/auth"`.
-  - Прапорці `httponly=True`, `samesite="strict"`, `secure=settings.cookie_secure`.
-- **Контрольна точка:** Як влаштований захист від витоку існування користувача (Timing Attack).
+  - Обмеження `Path="/auth"`.
+  - Прапорці `httponly=True`, `samesite="lax"`, `secure=settings.cookie_secure`.
+  - **Правило cookie_secure:** Для `production` автоматично `True` (тільки HTTPS), для `development` — `False`.
+- [x] Оновити `app/core/config.py`:
+  - Параметр `environment: Literal["development", "production", "test"]`.
+  - **Захист JWT Secret Key у Production:** Сувора заборона порожнього або дефолтного значення (`validate_production_security`), мінімум 32 символи (Fail-Fast).
+  - **Параметри Власника (Owner):** Винесення `owner_email: str` у налаштування замість хардкоду.
+- **Контрольна точка:** Як влаштований захист від витоку існування користувача (Timing Attack) та безпека секретів у production.
 
 ---
 
 ### Ітерація 4: Сервіс авторизації (Ротація, захист від крадіжки, вихід)
-- [x] Оновити ендпоінти в `app/api/auth.py` (або `app/services/auth_service.py`):
-  - `login`: створює нову пару токенів та нову `family_id`.
-  - `refresh`: песимістичне блокування `with_for_update()`, перевірка повторного використання (`used_at`), негайне відкликання родини (`_revoke_family`) при спробі крадіжки.
-  - `logout`: знаходить токен у базі та відкликає сесію.
+- [x] Оновити ендпоінти в `app/api/auth.py` та схеми в `app/schemas/user.py`:
+  - `TokenResponse`: містить ТІЛЬКИ `access_token` та `token_type` (жодного `refresh_token` у JSON-тілі).
+  - `login`: створює нову пару токенів та нову `family_id`; передає refresh токен **ВИКЛЮЧНО в HttpOnly Cookie**.
+  - `refresh`: читає токен **ВИКЛЮЧНО з куки** (`request.cookies.get("refresh_token")`), песимістичне блокування `with_for_update()`, перевірка повторного використання (`used_at`), негайне відкликання родини (`_revoke_family`) при спробі крадіжки.
+  - `logout`: знаходить токен у базі, відкликає сесію та очищає куку `clear_refresh_cookie()`.
   - `logout-all`: відкликає всі активні сесії користувача з усіх пристроїв.
 - **Контрольна точка:** Сценарій атаки крадіжки токена та реакція сервера.
 
 ---
 
 ### Ітерація 5: Захист роутерів та адміністрування користувачів
-- [x] Оновити `app/dependencies.py`:
+- [x] Оновити `app/dependencies/auth.py`:
   - Залежність `require_roles(*roles: Role)`.
   - Типові аліаси: `CurrentUser`, `AdminUser`, `ManagerUser`.
-- [x] Оновити `app/api/admin.py` та `app/api/users.py`:
-  - Перевірка, що адмін не може заблокувати або видалити сам себе (а також Головного Власника).
+  - **Обробка JWT помилок:** Явне перехоплення `ExpiredSignatureError` (HTTP 401 `"Token has expired"`) та `InvalidTokenError` (HTTP 401 `"Could not validate credentials"`), виключаючи аварійні 500-ті помилки.
+- [x] Оновити `app/services/admin.py` та `app/api/admin.py`:
+  - Захист адміна від блокування/видалення самого себе.
+  - **Динамічний захист Головного Власника (Owner):** Метод `_is_owner(user)` перевіряє `settings.owner_email` без хардкоду особистої пошти чи магічних ID (`id == 2`).
   - При блокуванні користувача (`is_active = False`) — автоматичне відкликання всіх його токенів у базі.
-- **Контрольна точка:** Як влаштована ін'єкція залежностей FastAPI для перевірки ролей.
+- **Контрольна точка:** Як влаштована ін'єкція залежностей FastAPI для перевірки ролей та динамічний захист власника.
 
 ---
 

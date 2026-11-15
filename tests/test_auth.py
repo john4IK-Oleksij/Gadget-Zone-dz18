@@ -143,9 +143,9 @@ class TestAuthentication:
         assert "password_hash" not in data
 
     @pytest.mark.asyncio
-    async def test_refresh_token_with_json_body(self, client: AsyncClient):
-        """Test refresh token using JSON request body."""
-        email = "refresh_json@example.com"
+    async def test_refresh_token_via_cookie(self, client: AsyncClient):
+        """Test refresh token using HttpOnly cookie (no refresh_token in JSON)."""
+        email = "refresh_cookie@example.com"
         password = "password123"
 
         await client.post(
@@ -157,16 +157,17 @@ class TestAuthentication:
             data={"username": email, "password": password},
         )
         login_data = login_res.json()
-        assert "refresh_token" in login_data
+        assert "access_token" in login_data
+        assert "refresh_token" not in login_data
+        assert "refresh_token" in login_res.cookies
 
-        refresh_res = await client.post(
-            "/auth/refresh",
-            json={"refresh_token": login_data["refresh_token"]},
-        )
+        # Refresh using the cookie set by login
+        refresh_res = await client.post("/auth/refresh")
         assert refresh_res.status_code == 200
         refresh_data = refresh_res.json()
         assert "access_token" in refresh_data
-        assert "refresh_token" in refresh_data
+        assert "refresh_token" not in refresh_data
+        assert "refresh_token" in refresh_res.cookies
 
         me_res = await client.get(
             "/users/me",
@@ -176,10 +177,16 @@ class TestAuthentication:
         assert me_res.json()["email"] == email
 
     @pytest.mark.asyncio
-    async def test_refresh_token_invalid(self, client: AsyncClient):
-        """Test refresh with invalid token returns 401."""
-        res = await client.post(
+    async def test_refresh_token_missing_and_invalid(self, client: AsyncClient):
+        """Test refresh without cookie or with invalid cookie returns 401."""
+        client.cookies.clear()
+        # Missing cookie
+        res_missing = await client.post("/auth/refresh")
+        assert res_missing.status_code == 401
+
+        # Invalid cookie
+        res_invalid = await client.post(
             "/auth/refresh",
-            json={"refresh_token": "invalid_token_string"},
+            cookies={"refresh_token": "invalid_token_string"},
         )
-        assert res.status_code == 401
+        assert res_invalid.status_code == 401
