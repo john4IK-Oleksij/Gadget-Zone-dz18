@@ -97,3 +97,15 @@ _ALL_MODELS = (CartItem, Product, RefreshToken, User)
    - `.env` MUST be in `.gitignore` and NEVER tracked in Git.
    - Maintain `.env.example` with safe placeholder templates for repository consumers.
 
+---
+
+## 8. Database Query & API Design Standards
+1. **Deterministic Pagination Ordering:**
+   - Any paginated SQL query using `.offset()` and `.limit()` MUST explicitly define ordering (e.g. `.order_by(Product.id.asc())`). Relational databases (MySQL, PostgreSQL) do not guarantee row order without an explicit `ORDER BY`, which causes data duplication or omission across pages.
+2. **Partial Updates via PATCH:**
+   - Resource updates where individual fields can change (e.g. fast inventory/stock adjustments, price changes) MUST support `PATCH` alongside or instead of full `PUT`.
+   - The corresponding schema (e.g. `ProductPatch`) must have all fields optional (`| None = None`), and service update methods must use `.model_dump(exclude_unset=True)` to prevent overwriting omitted fields with nulls.
+3. **E-Commerce Catalog Access vs. IDOR:**
+   - In single-store E-commerce models, deletion must be strictly restricted to `AdminUser` (RBAC), while catalog managers (`ManagerUser`) collaborate on inventory. In multi-vendor/marketplace models, enforce strict ownership checks (`product.seller_id == current_user.id`).
+
+

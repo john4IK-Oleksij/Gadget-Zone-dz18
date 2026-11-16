@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError
 from app.models.product import Product
-from app.schemas.product import ProductCreate, ProductUpdate
+from app.schemas.product import ProductCreate, ProductPatch, ProductUpdate
 
 
 class ProductService:
@@ -41,8 +41,8 @@ class ProductService:
 
         if category is not None:
             query = query.where(Product.category == category)
-
-        query = query.offset(skip).limit(limit)
+        # сортуємо всі товари за їхнім унікальним номером id від меншого до більшого (за зростанням)
+        query = query.order_by(Product.id.asc()).offset(skip).limit(limit)
 
         result = await self.session.execute(query)
 
@@ -80,8 +80,22 @@ class ProductService:
         self,
         product: Product,
         data: ProductUpdate,
-    ) -> Product:
+        ) -> Product:
         for field, value in data.model_dump().items():
+            setattr(product, field, value)
+
+        await self.session.commit()
+        await self.session.refresh(product)
+
+        return product
+
+    async def patch(
+        self,
+        product: Product,
+        data: ProductPatch,
+    ) -> Product:
+        # exclude_unset=True оновлює ТІЛЬКИ ті поля, які реально прийшли в JSON-запиті
+        for field, value in data.model_dump(exclude_unset=True).items():
             setattr(product, field, value)
 
         await self.session.commit()

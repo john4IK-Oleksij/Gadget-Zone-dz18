@@ -24,6 +24,15 @@ class ProductUpdate(BaseModel):
     stock_quantity: int = Field(ge=0)
     is_active: bool = True
 
+class ProductPatch(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    image: str | None = None
+    price: Decimal | None = None
+    old_price: Decimal | None = None
+    category: str | None = None
+    stock_quantity: int | None = Field(default=None, ge=0)
+    is_active: bool | None = None
 
 class ProductResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

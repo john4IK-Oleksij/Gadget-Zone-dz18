@@ -9,7 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.dependencies.auth import AdminUser, ManagerUser
-from app.schemas.product import ProductCreate, ProductResponse, ProductUpdate
+from app.schemas.product import (
+    ProductCreate,
+    ProductPatch,
+    ProductResponse,
+    ProductUpdate,
+)
 from app.services.product import ProductService
 
 router = APIRouter(
@@ -94,6 +99,19 @@ async def update_product(
 
     return await service.update(product, data)
 
+@router.patch(
+    "/{product_id}",
+    response_model=ProductResponse,
+)
+async def patch_product(
+    product_id: int,
+    data: ProductPatch,
+    session: DbSession,
+    manager: ManagerUser,
+):
+    service = ProductService(session)
+    product = await service.get_by_id(product_id, include_inactive=True)
+    return await service.patch(product, data)
 
 @router.delete(
     "/{product_id}",
